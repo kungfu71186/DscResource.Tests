@@ -23,8 +23,8 @@
     'Get-TargetResource', 'Test-TargetResource', 'Set-TargetResource'
 
 .OUTPUTS
-    This script will output a multi-line string with .SYNOPSIS and
-    each .PARAMETER value
+    This script will output a hash table with multi-line string that include
+    an empty .SYNOPSIS and each .PARAMETER value
 
 .EXAMPLE
     This example parses a psm1 file
@@ -52,34 +52,53 @@ Function New-DscResourceCommentBasedHelp
         )
     )
 
-    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'MofHelper.psm1')
-    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'Get-DSCResourceParameters.psm1')
-    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'DscResourceCommentHelper.psm1')
+    Import-Module -Name (
+        Join-Path -Path $PSScriptRoot -ChildPath 'MofHelper.psm1'
+    )
+
+    Import-Module -Name (
+        Join-Path -Path $PSScriptRoot -ChildPath 'Get-DSCResourceParameters.psm1'
+    )
+
+    Import-Module -Name (
+        Join-Path -Path $PSScriptRoot -ChildPath 'DscResourceCommentHelper.psm1'
+    )
     
     $resourceFiles = Get-ResourceFiles $ResourceName
     
     $moduleParameters = Get-DSCResourceParameters $resourceFiles.ModuleFile
     $schemaParameters = Get-MofSchemaObject -FileName $resourceFiles.SchemaFile
     
-    $outputStrings = @{}
- 
+    $outputStringsForEachFunction = @{}
+    $tab = [System.String]::new(' ',4)
     foreach($function in $moduleParameters.Keys){
-        Write-Verbose ('Creating the comment help based section for the function {0}' -f $function)
-        $output = New-Object -TypeName System.Text.StringBuilder
-        $null   = $output.Append("<# ").AppendLine($function)
-        $null   = $output.AppendLine("    .SYNOPSIS")
-        $null   = $output.AppendLine("        Add Synopsis here`n")
+        Write-Verbose (
+            'Creating the comment help based section for the function {0}' -f $function
+        )
 
-         foreach($parameter in $moduleParameters[$function]){
+        $stringBuilder = New-Object -TypeName System.Text.StringBuilder
+
+        # Start Synopsis
+        $null   = $stringBuilder.AppendLine('<#')
+        $null   = $stringBuilder.AppendLine($tab + '.SYNOPSIS')
+        $null   = $stringBuilder.AppendLine($tab + $tab + 'Synopsis here')
+        $null   = $stringBuilder.AppendLine('')
+
+        # Add each parameter
+        foreach($parameter in $moduleParameters[$function]){
             $parameterName   = $parameter.Name.VariablePath.UserPath
-            $getMOFParameter = $schemaParameters.Attributes | Where-Object {$_.Name -eq $parameterName}
-            $null            = $output.Append("    .PARAMETER ").AppendLine($parameterName)
-            $null            = $output.AppendLine("        $($getMOFParameter.Description)`n")
-         }
+            $getMOFParameter = $schemaParameters.Attributes | Where-Object {
+                $_.Name -eq $parameterName
+            }
 
-         $null = $output.AppendLine("#>")
-         $outputStrings[$function] = $output.ToString()
+            $null = $stringBuilder.AppendLine($tab + '.PARAMETER ' + $parameterName)
+            $null = $stringBuilder.AppendLine($tab + $tab + $getMOFParameter.Description)
+            $null = $stringBuilder.AppendLine('')
+        }
+
+        $null = $stringBuilder.AppendLine("#>")
+        $outputStringsForEachFunction[$function] = $stringBuilder.ToString()
     }
 
-    $outputStrings
+    return $outputStringsForEachFunction
 }

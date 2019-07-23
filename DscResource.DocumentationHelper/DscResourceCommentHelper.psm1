@@ -1,4 +1,37 @@
 
+$projectRootPath = Split-Path -Path $PSScriptRoot -Parent
+$testHelperPath = Join-Path -Path $projectRootPath -ChildPath 'TestHelper.psm1'
+Import-Module -Name $testHelperPath -Force
+
+$script:localizedData = Get-LocalizedData -ModuleName 'DscResourceCommentHelper' -ModuleRoot $PSScriptRoot
+
+
+<#
+.SYNOPSIS
+    Get-ResourceFiles will get the mof and module file for a specified resource
+
+.DESCRIPTION
+    This will look for the files necassary for a dsc resource and return the
+    location of those files. This is mainly used when the files are required for
+    parsing and metadata is needed
+
+.PARAMETER ResourceName
+    The resource module name, path to the .psm1, path to the .mof, or the
+    directory to process
+
+.OUTPUTS
+    This script will output a hashtable with SchemaFile and ModuleFile
+    @{
+        SchemaFile
+        ModuleFile
+    }
+
+.EXAMPLE
+    This example parses a psm1 file and returns both the schema and mof file
+
+    Get-ResourceFiles -ResourceName C:\DSC\MSFT_xAD\MSFT_xAD.psm1
+
+#>
 Function Get-ResourceFiles
 {
     [CmdletBinding()]
@@ -8,67 +41,64 @@ Function Get-ResourceFiles
         $ResourceName
     )
 
-    $returnFiles = @{
-        SchemaFile = $null
-        ModuleFile = $null
-    }
-
-    if (Test-Path -Path $ResourceName -ErrorAction SilentlyContinue)
+    if ($ResourceName -match '.*.schema.mof$' -or $ResourceName -match '.*.psm1$')
     {
-        if ($ResourceName -match '.*.schema.mof$')
+        if (Test-Path -Path $ResourceName -ErrorAction SilentlyContinue)
         {
-            $returnFiles.SchemaFile = $ResourceName
-            $returnFiles.ModuleFile = $ResourceName -replace '.schema.mof', '.psm1'
-        }
-        elseif ($ResourceName -match '.*.psm1$')
-        {
-            $returnFiles.SchemaFile = $ResourceName -replace '.psm1', '.schema.mof'
-            $returnFiles.ModuleFile = $ResourceName
-        }
-        elseif (Test-Path -Path $ResourceName -PathType Container)
-        {
-            # It's a directory, let's see if we can find the schema and psm files
-            $files = Get-ChildItem "C:\Users\martinezm\source\repos\xActiveDirectory\DSCResources\MSFT_xADKDSKey"
 
-            $returnFiles.SchemaFile = (
-                Get-ChildItem "C:\Users\martinezm\source\repos\xActiveDirectory\DSCResources\MSFT_xADKDSKey" -Filter *.schema.mof
-            ).FullName
-
-            $returnFiles.ModuleFile = (
-                Get-ChildItem "C:\Users\martinezm\source\repos\xActiveDirectory\DSCResources\MSFT_xADKDSKey" -Filter *.psm1
-            ).FullName
-
-            if ($returnFiles.SchemaFile -and $returnFiles.ModuleFile)
-            {
-                Write-Verbose ('Found the resource files in the directory  "{0}"' -f $ResourceName)
-            }
-            else
-            {
-                throw ('Could not find the resource files in the directory "{0}"' -f $ResourceName)
+            return @{
+                SchemaFile = $ResourceName -replace '.psm1', '.schema.mof'
+                ModuleFile = $ResourceName -replace '.schema.mof', '.psm1'
             }
         }
         else
         {
-            throw ('The file "{0}" is an unrecognizable file type' -f $ResourceName)
+            throw ($script:localizedData.ResourceFileNotFound -f $ResourceName)
+        }
+    }
+
+    if (Test-Path -Path $ResourceName -PathType Container)
+    {
+        # It's a directory, let's see if we can find the schema and psm files
+        $files = Get-ChildItem $ResourceName
+
+        $returnFiles = @{
+
+            SchemaFile = (
+                Get-ChildItem $ResourceName -Filter *.schema.mof
+            ).FullName
+
+            ModuleFile = (
+                Get-ChildItem $ResourceName -Filter *.psm1
+            ).FullName
         }
 
-        Write-Verbose ('Module found: {0}.' -f $ResourceName)
-    }
-    else
-    {
-        # The resource name may have been specified instead of the filename
-        if ($resourceInfo = Get-DscResource -Name $ResourceName -ErrorAction SilentlyContinue)
+        if ($returnFiles.SchemaFile -and $returnFiles.ModuleFile)
         {
-            $returnFiles.SchemaFile = $resourceInfo.Path -replace '.psm1', '.schema.mof'
-            $returnFiles.ModuleFile = $resourceInfo.Path
+            Write-Verbose (
+                $script:localizedData.ResourceFilesFound -f $ResourceName
+            )
+            
+            return $returnFiles
         }
         else
         {
-            throw ('Unable to get the information for the "{0}" resource.' -f $ResourceName)
+            throw (
+                $script:localizedData.ResourceFilesNotFoundInDirectory -f $ResourceName
+            )
         }
     }
 
-    return $returnFiles
+    # The resource name may have been specified instead of the filename or directory
+    if ($resourceInfo = Get-DscResource -Name $ResourceName -ErrorAction SilentlyContinue)
+    {
+        return @{
+            SchemaFile = $resourceInfo.Path -replace '.psm1', '.schema.mof'
+            ModuleFile = $resourceInfo.Path
+        }
+    }
+
+    throw ($script:localizedData.ResourceInfoError -f $ResourceName)
 }
 
 Export-ModuleMember -Function *

@@ -139,7 +139,9 @@ Function ConvertTo-ParsedAST
 
     $parseErrors = $null
     $astResourceParsed = $null
-    Write-Verbose ('Retreiving module information for: {0}.' -f $getModuleParameters.Name)
+    Write-Verbose ('Retreiving module information for: {0}.' -f `
+        $getModuleParameters.Name)
+    
     if ($moduleInfo = Get-Module @getModuleParameters)
     {
         $astResourceParsed = [System.Management.Automation.Language.Parser]::ParseFile(
@@ -148,12 +150,14 @@ Function ConvertTo-ParsedAST
     }
     else
     {
-        throw ('Unable to get the information for the "{0}" resource.' -f $ResourceName)
+        throw ('Unable to get the information for the "{0}" resource.' `
+            -f $ResourceName)
     }
 
     if ($parseErrors.Count -ne 0) {
         throw (
-            'Parsing errors detected when parsing file: {0} | {1}' -f $getModuleParameters.Name, $parseErrors
+            'Parsing errors detected when parsing file: {0} | {1}' `
+                -f $getModuleParameters.Name, $parseErrors
         )
     }
    
