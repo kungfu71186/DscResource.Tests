@@ -1,3 +1,10 @@
+
+$projectRootPath = Split-Path -Path $PSScriptRoot -Parent
+$testHelperPath = Join-Path -Path $projectRootPath -ChildPath 'TestHelper.psm1'
+Import-Module -Name $testHelperPath -Force
+
+$script:localizedData = Get-LocalizedData -ModuleName 'Get-DSCResourceParameters' -ModuleRoot $PSScriptRoot
+
 <#
 .SYNOPSIS
     Get-DSCResourceParameters is used to get all the parameters that belong
@@ -42,12 +49,16 @@ function Get-DSCResourceParameters
         )
     )
 
-    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'DscResourceCommentHelper.psm1')
+    Import-Module -Name (
+        Join-Path -Path $PSScriptRoot -ChildPath 'DscResourceCommentHelper.psm1'
+    )
     $resourceFiles = Get-ResourceFiles  $ResourceName
 
     $resourceAST = ConvertTo-ParsedAST -ResourceName $resourceFiles.ModuleFile
 
-    Write-Verbose ('Parsing functions: {0}' -f ($FunctionNames -join ', '))
+    Write-Verbose -Message (
+        $script:localizedData.VerboseParsingFunctions -f ($FunctionNames -join ', ')
+    )
     $functionDefinitionAst = $resourceAST.FindAll(
         {
             param($Item)
@@ -62,16 +73,24 @@ function Get-DSCResourceParameters
     # Check if we found all the functions, if not, show warning
     if ($functionDefinitionAst.Count -lt 1)
     {
-        throw ('Could not find any of functions: "{0}" in the resource "{1}"' -f ($FunctionNames -join ','), $ResourceName)
+        throw (
+            $script:localizedData.DidNotFindAnyFunctions -f (
+                $FunctionNames -join ','
+            ), $ResourceName
+        )
     }
     else
     {
-        $missingFunctions = Compare-Object -ReferenceObject $FunctionNames -DifferenceObject $functionDefinitionAst.Name
-        $foundFunctions = Compare-Object -ReferenceObject $FunctionNames -DifferenceObject $functionDefinitionAst.Name -IncludeEqual -ExcludeDifferent
+        $compareParameters = @{
+            ReferenceObject  = $FunctionNames
+            DifferenceObject = $functionDefinitionAst.Name
+        }
+        $missingFunctions = Compare-Object @compareParameters
+        $foundFunctions   = Compare-Object  @compareParameters -IncludeEqual -ExcludeDifferent
         if ($missingFunctions)
         {
-            Write-Warning (
-                'Could not find the following functions: [{0}], but will continue with the ones we did find: [{1}]' -f (
+            Write-Warning -Message (
+                $script:localizedData.DidNotFindFunction -f (
                     ($missingFunctions.InputObject -join ', '), 
                     ($foundFunctions.InputObject -join ', ')
                 )
@@ -79,11 +98,18 @@ function Get-DSCResourceParameters
         }
     }
 
-    Write-Verbose 'Parsing parameters for each function'
+    Write-Verbose -Message (
+        $script:localizedData.VerboseParsingParameters -f (
+            $foundFunctions.InputObject -join ', '
+        )
+    )
     $parameterDictionary = @{}
     $functionDefinitionAst | ForEach-Object {
         $functionName  = $PSItem.Name
-        Write-Verbose ('Attempting to find the parameters for the "{0}" function' -f $functionName)
+        Write-Verbose -Message (
+            $script:localizedData.VerboseFindParameters -f $functionName
+        )
+        
         $parameterDictionary[$functionName] = @()
 
         $functionParameters = $PSItem.Find(
@@ -98,7 +124,9 @@ function Get-DSCResourceParameters
 
         if ($functionParameters.Count -lt 1)
         {
-            Write-Error 'No parameters found for "{0}"' -f $functionName
+            Write-Error -Message (
+                $script:localizedData.NoParametersFound -f $functionName
+            )
             continue
         }
 
@@ -139,8 +167,9 @@ Function ConvertTo-ParsedAST
 
     $parseErrors = $null
     $astResourceParsed = $null
-    Write-Verbose ('Retreiving module information for: {0}.' -f `
-        $getModuleParameters.Name)
+    Write-Verbose -Message (
+        $script:localizedData.GetModuleInfo -f $getModuleParameters.Name
+    )
     
     if ($moduleInfo = Get-Module @getModuleParameters)
     {
@@ -150,14 +179,12 @@ Function ConvertTo-ParsedAST
     }
     else
     {
-        throw ('Unable to get the information for the "{0}" resource.' `
-            -f $ResourceName)
+        throw ($script:localizedData.ErrorGetModuleInfo -f $ResourceName)
     }
 
     if ($parseErrors.Count -ne 0) {
         throw (
-            'Parsing errors detected when parsing file: {0} | {1}' `
-                -f $getModuleParameters.Name, $parseErrors
+            $script:localizedData.ErrorParseAST -f $getModuleParameters.Name, $parseErrors
         )
     }
    

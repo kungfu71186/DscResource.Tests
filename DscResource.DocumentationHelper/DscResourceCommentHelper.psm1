@@ -75,7 +75,7 @@ Function Get-ResourceFiles
 
         if ($returnFiles.SchemaFile -and $returnFiles.ModuleFile)
         {
-            Write-Verbose (
+            Write-Verbose -Message (
                 $script:localizedData.ResourceFilesFound -f $ResourceName
             )
             

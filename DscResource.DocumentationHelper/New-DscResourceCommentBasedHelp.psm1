@@ -1,3 +1,10 @@
+
+$projectRootPath = Split-Path -Path $PSScriptRoot -Parent
+$testHelperPath = Join-Path -Path $projectRootPath -ChildPath 'TestHelper.psm1'
+Import-Module -Name $testHelperPath -Force
+
+$script:localizedData = Get-LocalizedData -ModuleName 'New-DscResourceCommentBasedHelp' -ModuleRoot $PSScriptRoot
+
 <#
 .SYNOPSIS
     New-DscResourceCommentBasedHelp will generate the comment based help based
@@ -68,12 +75,12 @@ Function New-DscResourceCommentBasedHelp
     
     $moduleParameters = Get-DSCResourceParameters $resourceFiles.ModuleFile
     $schemaParameters = Get-MofSchemaObject -FileName $resourceFiles.SchemaFile
-    
+
     $outputStringsForEachFunction = @{}
     $tab = [System.String]::new(' ',4)
     foreach($function in $moduleParameters.Keys){
-        Write-Verbose (
-            'Creating the comment help based section for the function {0}' -f $function
+        Write-Verbose -Message (
+            $script:localizedData.VerboseFunctionComments -f $function
         )
 
         $stringBuilder = New-Object -TypeName System.Text.StringBuilder
@@ -88,7 +95,7 @@ Function New-DscResourceCommentBasedHelp
         foreach($parameter in $moduleParameters[$function]){
             $parameterName   = $parameter.Name.VariablePath.UserPath
             $getMOFParameter = $schemaParameters.Attributes | Where-Object {
-                $_.Name -eq $parameterName
+                $PSItem.Name -eq $parameterName
             }
 
             $null = $stringBuilder.AppendLine($tab + '.PARAMETER ' + $parameterName)
