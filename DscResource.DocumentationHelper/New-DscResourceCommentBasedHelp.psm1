@@ -64,20 +64,17 @@ Function New-DscResourceCommentBasedHelp
     )
 
     Import-Module -Name (
-        Join-Path -Path $PSScriptRoot -ChildPath 'Get-DSCResourceParameters.psm1'
-    )
-
-    Import-Module -Name (
         Join-Path -Path $PSScriptRoot -ChildPath 'DscResourceCommentHelper.psm1'
     )
     
     $resourceFiles = Get-ResourceFiles $ResourceName
     
-    $moduleParameters = Get-DSCResourceParameters $resourceFiles.ModuleFile
-    $schemaParameters = Get-MofSchemaObject -FileName $resourceFiles.SchemaFile
-
+    $moduleParameters   = Get-DSCResourceParameters $resourceFiles.ModuleFile
+    $moduleHelpComments = Get-DSCResourceCommentBasedHelp $resourceFiles.ModuleFile
+    $schemaParameters   = Get-MofSchemaObject -FileName $resourceFiles.SchemaFile
+    
     $outputStringsForEachFunction = @{}
-    $tab = [System.String]::new(' ',4)
+    $tab = [System.String]::new(' ', 4)
     foreach($function in $moduleParameters.Keys){
         Write-Verbose -Message (
             $script:localizedData.VerboseFunctionComments -f $function
@@ -88,7 +85,7 @@ Function New-DscResourceCommentBasedHelp
         # Start Synopsis
         $null   = $stringBuilder.AppendLine('<#')
         $null   = $stringBuilder.AppendLine($tab + '.SYNOPSIS')
-        $null   = $stringBuilder.AppendLine($tab + $tab + 'Synopsis here')
+        $null   = $stringBuilder.AppendLine($tab + $tab + $moduleHelpComments[$function].Synopsis)
         $null   = $stringBuilder.AppendLine('')
 
         # Add each parameter
