@@ -280,6 +280,26 @@ function Get-DSCResourceCommentBasedHelp
     return $helpDictionary
 }
 
+<#
+.SYNOPSIS
+    Get-DSCResourceFunctionsFromAST is used to get all the functions back within
+    a module file
+
+.DESCRIPTION
+    Uses AST to parse a DSC Resource module to get the required functions within
+
+.PARAMETER Ast
+    The parsed ast file to search within
+
+.PARAMETER FunctionNames
+    This gets the parameters for the functions inside the resource.
+    By default this would be:
+    'Get-TargetResource', 'Test-TargetResource', 'Set-TargetResource'
+
+.OUTPUTS
+    [System.Management.Automation.Language.FunctionDefinitionAst]
+
+    #>
 function Get-DSCResourceFunctionsFromAST
 {
     [CmdletBinding()]
